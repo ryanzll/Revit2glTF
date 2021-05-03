@@ -241,6 +241,30 @@ namespace glTFRevitExport
             return container;
         }
 
+        public void openParentNode(Element parentElement, Transform xform = null, bool isInstance = false)
+        {
+            string nodeId = Node.GenerateId(parentElement, isInstance);
+            Node node = null;
+            if (nodeDict.ContainsKey(nodeId))
+            {
+                node = nodeDict[nodeId];
+            }
+            else
+            {
+                node = new Node(parentElement, nodeDict.Count, _exportProperties, isInstance, formatDebugHeirarchy);
+                nodeDict.Add(node.id, node);
+            }
+            parentStack.Push(node.id);
+        }
+
+        public void closeParentNode(Element parentElement, bool isInstance = false)
+        {
+            Debug.WriteLine(String.Format("{0}Closing parent Node", formatDebugHeirarchy));
+
+            Debug.WriteLine(String.Format("{0} parent Node Closed", formatDebugHeirarchy));
+            parentStack.Pop();
+        }
+
         public void OpenNode(Element elem, Transform xform = null, bool isInstance = false)
         {
             //// TODO: [RM] Commented out because this is likely to be very buggy and not the 
@@ -267,7 +291,17 @@ namespace glTFRevitExport
             bool exportNodeProperties = _exportProperties;
             if (isInstance == true && elem is FamilySymbol) exportNodeProperties = false;
 
-            Node node = new Node(elem, nodeDict.Count, exportNodeProperties, isInstance, formatDebugHeirarchy);
+            string nodeId = Node.GenerateId(elem, isInstance);
+            Node node = null;
+            if (nodeDict.ContainsKey(nodeId))
+            {
+                node = nodeDict[nodeId];
+            }
+            else
+            {
+                node = new Node(elem, nodeDict.Count, exportNodeProperties, isInstance, formatDebugHeirarchy);
+                nodeDict.Add(node.id, node);
+            }
 
             if (parentStack.Count > 0)
             {
@@ -282,8 +316,6 @@ namespace glTFRevitExport
             {
                 node.matrix = ManagerUtils.ConvertXForm(xform);
             }
-
-            nodeDict.Add(node.id, node);
 
             OpenGeometry();
             Debug.WriteLine(String.Format("{0}Node Open", formatDebugHeirarchy));
@@ -601,7 +633,7 @@ namespace glTFRevitExport
 
             this.element = elem;
             this.name = Util.ElementDescription(elem);
-            this.id = isInstance ? elem.UniqueId + "::" + Guid.NewGuid().ToString() : elem.UniqueId;
+            this.id = GenerateId(elem,isInstance);
             this.index = index;
             Debug.WriteLine(String.Format("{1}    Name:{0}", this.name, heirarchyFormat));
 
@@ -634,6 +666,11 @@ namespace glTFRevitExport
             node.extras = this.extras;
             node.children = this.children;
             return node;
+        }
+   
+        public static string GenerateId(Element elem, bool isInstance = false)
+        {
+            return isInstance ? elem.UniqueId + "::" + Guid.NewGuid().ToString() : elem.UniqueId;
         }
     }
 }

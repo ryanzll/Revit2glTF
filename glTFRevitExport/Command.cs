@@ -1,10 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using Autodesk.Revit.ApplicationServices;
 using Autodesk.Revit.Attributes;
 using Autodesk.Revit.DB;
 using Autodesk.Revit.UI;
 using Microsoft.Win32;
+using System.Linq;
 
 namespace glTFRevitExport
 {
@@ -13,15 +15,22 @@ namespace glTFRevitExport
     {
         public void ExportView3D(View3D view3d, string filename, string directory)
         {
-            Document doc = view3d.Document;
+            try
+            {
+                Document doc = view3d.Document;
 
-            // Use our custom implementation of IExportContext as the exporter context.
-            glTFExportContext ctx = new glTFExportContext(doc, filename, directory);
-            // Create a new custom exporter with the context.
-            CustomExporter exporter = new CustomExporter(doc, ctx);
+                // Use our custom implementation of IExportContext as the exporter context.
+                glTFExportContext ctx = new glTFExportContext(doc, filename, directory);
+                // Create a new custom exporter with the context.
+                CustomExporter exporter = new CustomExporter(doc, ctx);
 
-            exporter.ShouldStopOnError = true;
-            exporter.Export(view3d);
+                exporter.ShouldStopOnError = true;
+                exporter.Export(view3d);
+            }
+            catch (Exception ex)
+            {
+
+            }
         }
 
         public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
@@ -49,6 +58,45 @@ namespace glTFRevitExport
                 string directory = Path.GetDirectoryName(filename) + "\\";
 
                 ExportView3D(view, filename, directory);
+            }
+
+            return Result.Succeeded;
+        }
+    }
+
+    [Transaction(TransactionMode.Manual)]
+    class RebarCommand : IExternalCommand
+    {
+        public Result Execute(ExternalCommandData commandData, ref string message, ElementSet elements)
+        {
+            UIApplication uiapp = commandData.Application;
+            UIDocument uidoc = uiapp.ActiveUIDocument;
+            Application app = uiapp.Application;
+            Document doc = uidoc.Document;
+
+            View3D view = doc.ActiveView as View3D;
+            if (view == null)
+            {
+                TaskDialog.Show("glTFRevitExport", "You must be in a 3D view to export.");
+                return Result.Failed;
+            }
+
+            SaveFileDialog fileDialog = new SaveFileDialog();
+            fileDialog.FileName = "NewProject"; // default file name
+            fileDialog.DefaultExt = ".gltf"; // default file extension
+
+            bool? dialogResult = fileDialog.ShowDialog();
+            if (dialogResult == true)
+            {
+                string filename = fileDialog.FileName;
+                string directory = Path.GetDirectoryName(filename) + "\\";
+
+                // Use our custom implementation of IExportContext as the exporter context.
+                glTFExportContext ctx = new glTFExportContext(doc, filename, directory);
+                // Create a new custom exporter with the context.
+                CustomExporter exporter = new CustomExporter(doc, ctx);
+                exporter.ShouldStopOnError = true;
+                exporter.Export(view);
             }
 
             return Result.Succeeded;

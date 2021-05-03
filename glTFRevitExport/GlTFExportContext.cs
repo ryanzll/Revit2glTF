@@ -8,6 +8,7 @@ using System.Diagnostics;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using System.Text;
+using Autodesk.Revit.DB.Structure;
 
 namespace glTFRevitExport
 {
@@ -211,12 +212,20 @@ namespace glTFRevitExport
             Element e = _doc.GetElement(elementId);
             Debug.WriteLine(String.Format("{2}OnElementBegin: {1}-{0}", e.Name, elementId, manager.formatDebugHeirarchy));
 
-            if (manager.containsNode(e.UniqueId))
+            //if (manager.containsNode(e.UniqueId))
+            //{
+            //    // Duplicate element, skip adding.
+            //    Debug.WriteLine(String.Format("{0}  Duplicate Element!", manager.formatDebugHeirarchy));
+            //    _skipElementFlag = true;
+            //    return RenderNodeAction.Skip;
+            //}
+            if(e is Rebar rebar)
             {
-                // Duplicate element, skip adding.
-                Debug.WriteLine(String.Format("{0}  Duplicate Element!", manager.formatDebugHeirarchy));
-                _skipElementFlag = true;
-                return RenderNodeAction.Skip;
+                Element hostElement = _doc.GetElement(rebar.GetHostId());
+                if(null != hostElement)
+                {
+                    manager.openParentNode(hostElement);
+                }
             }
 
             manager.OpenNode(e);
@@ -281,6 +290,16 @@ namespace glTFRevitExport
             }
 
             manager.CloseNode();
+
+            Element e = _doc.GetElement(elementId);
+            if (e is Rebar rebar)
+            {
+                Element hostElement = _doc.GetElement(rebar.GetHostId());
+                if (null != hostElement)
+                {
+                    manager.closeParentNode(hostElement);
+                }
+            }
         }
 
         /// <summary>
